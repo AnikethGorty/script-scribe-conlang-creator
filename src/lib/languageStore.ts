@@ -1,6 +1,17 @@
 
 import { ConlangLanguage, Letter } from "@/types/language";
 import { supabase } from "@/integrations/supabase/client";
+import { Json } from "@/integrations/supabase/types";
+
+// Helper function to properly type the data from Supabase
+const mapSupabaseDataToLanguage = (data: any): ConlangLanguage => {
+  return {
+    id: data.id,
+    name: data.name,
+    letters: data.letters as Letter[],
+    created_at: data.created_at
+  };
+};
 
 // Get all languages from Supabase
 export const getLanguages = async (): Promise<ConlangLanguage[]> => {
@@ -15,7 +26,8 @@ export const getLanguages = async (): Promise<ConlangLanguage[]> => {
       return [];
     }
     
-    return data || [];
+    // Map the Supabase data to our ConlangLanguage type
+    return data ? data.map(mapSupabaseDataToLanguage) : [];
   } catch (error) {
     console.error("Failed to fetch languages:", error);
     return [];
@@ -36,7 +48,7 @@ export const getLanguageById = async (id: string): Promise<ConlangLanguage | nul
       return null;
     }
     
-    return data;
+    return data ? mapSupabaseDataToLanguage(data) : null;
   } catch (error) {
     console.error("Failed to fetch language by ID:", error);
     return null;
@@ -50,7 +62,7 @@ export const saveLanguage = async (language: Omit<ConlangLanguage, "id" | "creat
       .from('conlang_scripts')
       .insert([{ 
         name: language.name, 
-        letters: language.letters 
+        letters: language.letters as unknown as Json
       }])
       .select()
       .single();
@@ -60,7 +72,7 @@ export const saveLanguage = async (language: Omit<ConlangLanguage, "id" | "creat
       return null;
     }
     
-    return data;
+    return data ? mapSupabaseDataToLanguage(data) : null;
   } catch (error) {
     console.error("Failed to save language:", error);
     return null;
