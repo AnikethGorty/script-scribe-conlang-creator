@@ -1,5 +1,6 @@
 
 import { useState, useEffect, KeyboardEvent, ChangeEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { ConlangLanguage } from "@/types/language";
 import { getLanguages } from "@/lib/languageStore";
@@ -12,34 +13,39 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { Edit, Trash } from "lucide-react";
+import DeleteScriptDialog from "@/components/DeleteScriptDialog";
 
 const TypeInScript = () => {
+  const navigate = useNavigate();
   const [languages, setLanguages] = useState<ConlangLanguage[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<ConlangLanguage | null>(null);
   const [text, setText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const loadLanguages = async () => {
+    setIsLoading(true);
+    try {
+      const loadedLanguages = await getLanguages();
+      setLanguages(loadedLanguages);
+      
+      // Select the first language if available
+      if (loadedLanguages.length > 0) {
+        setSelectedLanguage(loadedLanguages[0]);
+      }
+    } catch (error) {
+      console.error("Failed to load languages:", error);
+      toast.error("Failed to load languages. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Load languages from Supabase
-    const loadLanguages = async () => {
-      setIsLoading(true);
-      try {
-        const loadedLanguages = await getLanguages();
-        setLanguages(loadedLanguages);
-        
-        // Select the first language if available
-        if (loadedLanguages.length > 0) {
-          setSelectedLanguage(loadedLanguages[0]);
-        }
-      } catch (error) {
-        console.error("Failed to load languages:", error);
-        toast.error("Failed to load languages. Please try again.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
     loadLanguages();
   }, []);
 
@@ -85,6 +91,16 @@ const TypeInScript = () => {
     setText(e.target.value);
   };
 
+  const handleDeleteConfirmed = () => {
+    loadLanguages();
+  };
+
+  const handleEditScript = () => {
+    if (selectedLanguage) {
+      navigate(`/edit/${selectedLanguage.id}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100">
       <Navbar />
@@ -96,9 +112,34 @@ const TypeInScript = () => {
           </h1>
           
           <div className="mb-6">
-            <Label htmlFor="language-select" className="text-lg mb-2 block">
-              Select Language
-            </Label>
+            <div className="flex justify-between items-center mb-2">
+              <Label htmlFor="language-select" className="text-lg block">
+                Select Language
+              </Label>
+              
+              {selectedLanguage && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      Options
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleEditScript} className="cursor-pointer">
+                      <Edit className="mr-2 h-4 w-4" />
+                      <span>Edit Script</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                      className="text-red-500 cursor-pointer"
+                    >
+                      <Trash className="mr-2 h-4 w-4" />
+                      <span>Delete Script</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
             
             {isLoading ? (
               <div className="flex justify-center py-4">
@@ -168,6 +209,16 @@ const TypeInScript = () => {
           )}
         </div>
       </div>
+      
+      {selectedLanguage && (
+        <DeleteScriptDialog
+          isOpen={isDeleteDialogOpen}
+          onClose={() => setIsDeleteDialogOpen(false)}
+          languageId={selectedLanguage.id}
+          languageName={selectedLanguage.name}
+          onDeleted={handleDeleteConfirmed}
+        />
+      )}
     </div>
   );
 };

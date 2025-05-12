@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import CreateScript from "./pages/CreateScript";
+import EditScript from "./pages/EditScript";
 import TypeInScript from "./pages/TypeInScript";
 import NotFound from "./pages/NotFound";
 
@@ -20,6 +21,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/create" element={<CreateScript />} />
+          <Route path="/edit/:id" element={<EditScript />} />
           <Route path="/type" element={<TypeInScript />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
