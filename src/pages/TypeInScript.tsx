@@ -58,14 +58,14 @@ const TypeInScript = () => {
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (!selectedLanguage) return;
     
-    // Allow special keys
-    const specialKeys = [
+    // Allow special keys for navigation and control
+    const navigationKeys = [
       "Backspace", "Delete", "ArrowLeft", "ArrowRight", 
       "ArrowUp", "ArrowDown", "Tab", "Enter", "Escape",
-      "Control", "Alt", "Shift", "Meta", "CapsLock", "Space"
+      "Control", "Alt", "Shift", "Meta", "CapsLock"
     ];
     
-    if (specialKeys.includes(e.key)) return;
+    if (navigationKeys.includes(e.key)) return;
     
     // Handle space separately
     if (e.key === " ") return;

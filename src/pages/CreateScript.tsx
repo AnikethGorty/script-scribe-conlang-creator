@@ -50,8 +50,16 @@ const CreateScript = () => {
     e.preventDefault();
     const key = e.key;
     
-    // Filter out special keys like Shift, Alt, etc.
-    if (key.length === 1) {
+    // Allow all printable characters including special characters
+    if (key.length === 1 || key === "!" || key === "," || key === "?" || 
+        key === "@" || key === "." || key === ";" || key === ":" || 
+        key === "'" || key === '"' || key === "(" || key === ")" || 
+        key === "-" || key === "_" || key === "+" || key === "=" || 
+        key === "/" || key === "\\" || key === "*" || key === "&" ||
+        key === "^" || key === "%" || key === "$" || key === "#" ||
+        key === "`" || key === "~" || key === "[" || key === "]" || 
+        key === "{" || key === "}" || key === "<" || key === ">" ||
+        key === "|") {
       setCurrentKey(key);
     }
   };
