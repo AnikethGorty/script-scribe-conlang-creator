@@ -24,7 +24,7 @@ const App = () => (
           <Route path="/create" element={<CreateScript />} />
           <Route path="/edit/:id" element={<EditScript />} />
           <Route path="/type" element={<TypeInScript />} />
-          <Route path="/train" element={<TrainScript />} />
+          <Route path="/train" element={<Train />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
