@@ -9,5 +9,5 @@ export interface ConlangLanguage {
   id: string; // Unique identifier
   name: string; // The name of the conlang
   letters: Letter[]; // Array of letter mappings
-  createdAt: number; // Timestamp
+  created_at?: string; // Timestamp from Supabase
 }

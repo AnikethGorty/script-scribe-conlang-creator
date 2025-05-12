@@ -12,21 +12,35 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 const TypeInScript = () => {
   const [languages, setLanguages] = useState<ConlangLanguage[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<ConlangLanguage | null>(null);
   const [text, setText] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load languages from storage
-    const loadedLanguages = getLanguages();
-    setLanguages(loadedLanguages);
+    // Load languages from Supabase
+    const loadLanguages = async () => {
+      setIsLoading(true);
+      try {
+        const loadedLanguages = await getLanguages();
+        setLanguages(loadedLanguages);
+        
+        // Select the first language if available
+        if (loadedLanguages.length > 0) {
+          setSelectedLanguage(loadedLanguages[0]);
+        }
+      } catch (error) {
+        console.error("Failed to load languages:", error);
+        toast.error("Failed to load languages. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    // Select the first language if available
-    if (loadedLanguages.length > 0) {
-      setSelectedLanguage(loadedLanguages[0]);
-    }
+    loadLanguages();
   }, []);
 
   const handleLanguageChange = (value: string) => {
@@ -86,7 +100,11 @@ const TypeInScript = () => {
               Select Language
             </Label>
             
-            {languages.length > 0 ? (
+            {isLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+              </div>
+            ) : languages.length > 0 ? (
               <Select
                 value={selectedLanguage?.id || ""}
                 onValueChange={handleLanguageChange}

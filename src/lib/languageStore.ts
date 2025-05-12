@@ -1,46 +1,88 @@
 
-import { ConlangLanguage } from "@/types/language";
+import { ConlangLanguage, Letter } from "@/types/language";
+import { supabase } from "@/integrations/supabase/client";
 
-// Local storage key
-const STORAGE_KEY = "conlang-languages";
-
-// Get all languages
-export const getLanguages = (): ConlangLanguage[] => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) return [];
-  
+// Get all languages from Supabase
+export const getLanguages = async (): Promise<ConlangLanguage[]> => {
   try {
-    return JSON.parse(stored);
+    const { data, error } = await supabase
+      .from('conlang_scripts')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error("Error fetching languages:", error);
+      return [];
+    }
+    
+    return data || [];
   } catch (error) {
-    console.error("Failed to parse languages:", error);
+    console.error("Failed to fetch languages:", error);
     return [];
   }
 };
 
-// Get a specific language by ID
-export const getLanguageById = (id: string): ConlangLanguage | undefined => {
-  const languages = getLanguages();
-  return languages.find((lang) => lang.id === id);
-};
-
-// Save a new language
-export const saveLanguage = (language: ConlangLanguage): void => {
-  const languages = getLanguages();
-  const existingIndex = languages.findIndex((lang) => lang.id === language.id);
-  
-  if (existingIndex >= 0) {
-    // Update existing language
-    languages[existingIndex] = language;
-  } else {
-    // Add new language
-    languages.push(language);
+// Get a specific language by ID from Supabase
+export const getLanguageById = async (id: string): Promise<ConlangLanguage | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('conlang_scripts')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.error("Error fetching language:", error);
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch language by ID:", error);
+    return null;
   }
-  
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(languages));
 };
 
-// Delete a language
-export const deleteLanguage = (id: string): void => {
-  const languages = getLanguages().filter((lang) => lang.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(languages));
+// Save a new language to Supabase
+export const saveLanguage = async (language: Omit<ConlangLanguage, "id" | "created_at">): Promise<ConlangLanguage | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('conlang_scripts')
+      .insert([{ 
+        name: language.name, 
+        letters: language.letters 
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error("Error saving language:", error);
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Failed to save language:", error);
+    return null;
+  }
+};
+
+// Delete a language from Supabase
+export const deleteLanguage = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('conlang_scripts')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error("Error deleting language:", error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Failed to delete language:", error);
+    return false;
+  }
 };

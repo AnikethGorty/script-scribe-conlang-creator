@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { ConlangLanguage, Letter } from "@/types/language";
 import { saveLanguage } from "@/lib/languageStore";
@@ -10,11 +11,13 @@ import { toast } from "sonner";
 import { X } from "lucide-react";
 
 const CreateScript = () => {
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [letters, setLetters] = useState<Letter[]>([]);
   const [currentAlphabet, setCurrentAlphabet] = useState("");
   const [currentKey, setCurrentKey] = useState("");
   const [currentIpa, setCurrentIpa] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const addLetter = () => {
     if (!currentAlphabet || !currentKey) {
@@ -53,7 +56,7 @@ const CreateScript = () => {
     }
   };
 
-  const saveConlang = () => {
+  const saveConlang = async () => {
     if (!name) {
       toast.error("Language name is required");
       return;
@@ -64,19 +67,28 @@ const CreateScript = () => {
       return;
     }
 
-    const newLanguage: ConlangLanguage = {
-      id: Date.now().toString(),
-      name,
-      letters,
-      createdAt: Date.now()
-    };
+    setIsLoading(true);
 
-    saveLanguage(newLanguage);
-    toast.success("Language created successfully!");
-    
-    // Clear the form
-    setName("");
-    setLetters([]);
+    try {
+      const newLanguage = {
+        name,
+        letters
+      };
+
+      const result = await saveLanguage(newLanguage);
+      
+      if (result) {
+        toast.success("Language created successfully!");
+        navigate('/type'); // Navigate to the type page after successful creation
+      } else {
+        toast.error("Failed to create language. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error saving language:", error);
+      toast.error("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -193,9 +205,10 @@ const CreateScript = () => {
           <div className="mt-8">
             <Button 
               onClick={saveConlang}
+              disabled={isLoading}
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-lg py-6"
             >
-              Create Language
+              {isLoading ? "Creating..." : "Create Language"}
             </Button>
           </div>
         </div>

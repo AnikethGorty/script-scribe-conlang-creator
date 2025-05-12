@@ -9,7 +9,27 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      conlang_scripts: {
+        Row: {
+          created_at: string
+          id: string
+          letters: Json
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          letters: Json
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          letters?: Json
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
