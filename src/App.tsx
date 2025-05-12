@@ -9,6 +9,7 @@ import CreateScript from "./pages/CreateScript";
 import EditScript from "./pages/EditScript";
 import TypeInScript from "./pages/TypeInScript";
 import NotFound from "./pages/NotFound";
+import Train from "./pages/Train";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/create" element={<CreateScript />} />
           <Route path="/edit/:id" element={<EditScript />} />
           <Route path="/type" element={<TypeInScript />} />
+          <Route path="/train" element={TrainScript />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
