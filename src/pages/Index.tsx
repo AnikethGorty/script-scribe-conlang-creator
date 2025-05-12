@@ -30,6 +30,12 @@ const Index = () => {
             >
               Type in Script
             </Link>
+            <Link>
+              to="/train"
+              className="px-8 py-4 bg-purple-600 text-white rounded-lg shadow-md hover:bg-purple-700 transition-colors text-lg font-medium"
+            >
+              Train An AI
+            </Link>
           </div>
         </div>
         
