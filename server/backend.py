@@ -1,88 +1,112 @@
-import React, { useState } from 'react';
-import axios from 'axios';
 
-const wordTypes = ["verb", "adjective", "noun", "pronoun", "prefix", "preposition", "conjunction"];
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import nltk
+import sqlite3
+import os
 
-const Train = () => {
-  const [sentence, setSentence] = useState("");
-  const [wordList, setWordList] = useState<string[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [showForm, setShowForm] = useState(false);
+# Download necessary NLTK data
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 
-  const [meaning, setMeaning] = useState("");
-  const [type, setType] = useState(wordTypes[0]);
-  const [context, setContext] = useState("");
+app = Flask(__name__)
+CORS(app)  # Allow cross-origin requests
 
-  const submitSentence = async () => {
-    try {
-      const res = await axios.post("http://localhost:5000/parse-sentence", { sentence });
-      setWordList(res.data.unknown_words);
-      setCurrentIndex(0);
-      setShowForm(true);
-    } catch (err) {
-      alert("Error contacting server");
-    }
-  };
+# Initialize SQLite database
+def init_db():
+    conn = sqlite3.connect('vocabulary.db')
+    c = conn.cursor()
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS words (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        word TEXT UNIQUE,
+        meaning TEXT,
+        type TEXT,
+        context TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+    conn.commit()
+    conn.close()
 
-  const submitWordData = async () => {
-    const word = wordList[currentIndex];
-    await axios.post("http://localhost:5000/submit-word", {
-      word,
-      meaning,
-      type,
-      context
-    });
+# Run database initialization
+init_db()
 
-    // Reset form
-    setMeaning("");
-    setType(wordTypes[0]);
-    setContext("");
+# Get known words from the database
+def get_known_words():
+    conn = sqlite3.connect('vocabulary.db')
+    c = conn.cursor()
+    c.execute("SELECT word FROM words")
+    known_words = [row[0] for row in c.fetchall()]
+    conn.close()
+    return known_words
 
-    if (currentIndex + 1 < wordList.length) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      setShowForm(false);
-      alert("Training complete!");
-    }
-  };
+@app.route('/parse-sentence', methods=['POST'])
+def parse_sentence():
+    data = request.json
+    if not data or 'sentence' not in data:
+        return jsonify({"error": "No sentence provided"}), 400
+    
+    sentence = data['sentence']
+    
+    # Tokenize the sentence into words
+    words = nltk.word_tokenize(sentence)
+    # Clean up tokens (remove punctuation as separate tokens, lowercase)
+    words = [word.lower() for word in words if word.isalnum()]
+    
+    # Get known words
+    known_words = get_known_words()
+    
+    # Find unknown words
+    unknown_words = [word for word in words if word not in known_words]
+    # Remove duplicates while preserving order
+    unknown_words = list(dict.fromkeys(unknown_words))
+    
+    return jsonify({"unknown_words": unknown_words})
 
-  return (
-    <div style={{ padding: "20px" }}>
-      <h2>Train AI Vocabulary</h2>
-      <input
-        type="text"
-        value={sentence}
-        onChange={(e) => setSentence(e.target.value)}
-        placeholder="Enter a sentence"
-        style={{ width: "300px", marginRight: "10px" }}
-      />
-      <button onClick={submitSentence}>Submit</button>
+@app.route('/submit-word', methods=['POST'])
+def submit_word():
+    data = request.json
+    if not data or 'word' not in data:
+        return jsonify({"error": "No word provided"}), 400
+    
+    word = data['word']
+    meaning = data.get('meaning', '')
+    word_type = data.get('type', '')
+    context = data.get('context', '')
+    
+    conn = sqlite3.connect('vocabulary.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute(
+            "INSERT INTO words (word, meaning, type, context) VALUES (?, ?, ?, ?)",
+            (word, meaning, word_type, context)
+        )
+        conn.commit()
+        return jsonify({"success": True, "message": f"Word '{word}' added successfully"})
+    except sqlite3.IntegrityError:
+        # Word already exists, update it instead
+        c.execute(
+            "UPDATE words SET meaning = ?, type = ?, context = ? WHERE word = ?",
+            (meaning, word_type, context, word)
+        )
+        conn.commit()
+        return jsonify({"success": True, "message": f"Word '{word}' updated successfully"})
+    finally:
+        conn.close()
 
-      {showForm && wordList.length > 0 && (
-        <div style={{
-          marginTop: "30px",
-          padding: "20px",
-          border: "1px solid #ccc",
-          width: "400px",
-          backgroundColor: "#f8f8f8"
-        }}>
-          <h3>Word: {wordList[currentIndex]}</h3>
-          <label>Meaning:</label><br />
-          <input value={meaning} onChange={e => setMeaning(e.target.value)} style={{ width: "100%" }} /><br /><br />
-          
-          <label>Type:</label><br />
-          <select value={type} onChange={e => setType(e.target.value)} style={{ width: "100%" }}>
-            {wordTypes.map(t => <option key={t}>{t}</option>)}
-          </select><br /><br />
-          
-          <label>Context:</label><br />
-          <input value={context} onChange={e => setContext(e.target.value)} style={{ width: "100%" }} /><br /><br />
+@app.route('/get-words', methods=['GET'])
+def get_words():
+    conn = sqlite3.connect('vocabulary.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM words ORDER BY created_at DESC")
+    words = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({"words": words})
 
-          <button onClick={submitWordData}>Submit Word</button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default Train;
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
