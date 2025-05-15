@@ -2,10 +2,12 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import nltk
-import sqlite3
 import os
 import traceback
 import logging
+from pymongo import MongoClient
+from datetime import datetime
+from bson.objectid import ObjectId
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -21,40 +23,59 @@ app = Flask(__name__)
 # Allow cross-origin requests from any origin for development
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Initialize SQLite database
+# MongoDB connection setup
+def get_mongo_client():
+    try:
+        # Try to get MongoDB URI from environment variable, otherwise use default
+        mongo_uri = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/')
+        client = MongoClient(mongo_uri)
+        # Test the connection
+        client.admin.command('ping')
+        logger.info("MongoDB connected successfully")
+        return client
+    except Exception as e:
+        logger.error(f"MongoDB connection error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return None
+
+# Get MongoDB client
+mongo_client = get_mongo_client()
+
+# Get database and collection
+def get_db():
+    if mongo_client:
+        db = mongo_client['vocabulary_db']
+        return db
+    return None
+
+# Initialize database
 def init_db():
     try:
-        conn = sqlite3.connect('vocabulary.db')
-        c = conn.cursor()
-        c.execute('''
-        CREATE TABLE IF NOT EXISTS words (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            word TEXT UNIQUE,
-            meaning TEXT,
-            type TEXT,
-            context TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-        conn.commit()
-        conn.close()
-        logger.info("Database initialized successfully")
+        db = get_db()
+        if db and 'words' not in db.list_collection_names():
+            # Create an index on the word field
+            db.words.create_index('word', unique=True)
+            logger.info("MongoDB initialized successfully")
+        else:
+            logger.info("MongoDB collection already exists")
     except Exception as e:
-        logger.error(f"Database initialization error: {str(e)}")
+        logger.error(f"MongoDB initialization error: {str(e)}")
         logger.error(traceback.format_exc())
 
 # Run database initialization
-init_db()
+if mongo_client:
+    init_db()
+else:
+    logger.error("Failed to connect to MongoDB. Application may not function correctly.")
 
 # Get known words from the database
 def get_known_words():
     try:
-        conn = sqlite3.connect('vocabulary.db')
-        c = conn.cursor()
-        c.execute("SELECT word FROM words")
-        known_words = [row[0] for row in c.fetchall()]
-        conn.close()
-        return known_words
+        db = get_db()
+        if db:
+            known_words = [word['word'] for word in db.words.find({}, {'word': 1})]
+            return known_words
+        return []
     except Exception as e:
         logger.error(f"Error getting known words: {str(e)}")
         logger.error(traceback.format_exc())
@@ -99,31 +120,37 @@ def submit_word():
         if not data or 'word' not in data:
             return jsonify({"error": "No word provided"}), 400
         
+        db = get_db()
+        if not db:
+            return jsonify({"error": "Database connection failed"}), 500
+        
         word = data['word']
         meaning = data.get('meaning', '')
         word_type = data.get('type', '')
         context = data.get('context', '')
         
-        conn = sqlite3.connect('vocabulary.db')
-        c = conn.cursor()
-        
         try:
-            c.execute(
-                "INSERT INTO words (word, meaning, type, context) VALUES (?, ?, ?, ?)",
-                (word, meaning, word_type, context)
+            # Try to insert a new document
+            result = db.words.update_one(
+                {"word": word},
+                {"$set": {
+                    "word": word,
+                    "meaning": meaning, 
+                    "type": word_type, 
+                    "context": context,
+                    "created_at": datetime.now(),
+                    "updated_at": datetime.now()
+                }},
+                upsert=True
             )
-            conn.commit()
-            return jsonify({"success": True, "message": f"Word '{word}' added successfully"})
-        except sqlite3.IntegrityError:
-            # Word already exists, update it instead
-            c.execute(
-                "UPDATE words SET meaning = ?, type = ?, context = ? WHERE word = ?",
-                (meaning, word_type, context, word)
-            )
-            conn.commit()
-            return jsonify({"success": True, "message": f"Word '{word}' updated successfully"})
-        finally:
-            conn.close()
+            
+            if result.upserted_id:
+                return jsonify({"success": True, "message": f"Word '{word}' added successfully"})
+            else:
+                return jsonify({"success": True, "message": f"Word '{word}' updated successfully"})
+        except Exception as e:
+            logger.error(f"Error saving word: {str(e)}")
+            return jsonify({"error": f"Database error: {str(e)}"}), 500
     except Exception as e:
         logger.error(f"Error in submit_word: {str(e)}")
         logger.error(traceback.format_exc())
@@ -132,12 +159,22 @@ def submit_word():
 @app.route('/get-words', methods=['GET'])
 def get_words():
     try:
-        conn = sqlite3.connect('vocabulary.db')
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
-        c.execute("SELECT * FROM words ORDER BY created_at DESC")
-        words = [dict(row) for row in c.fetchall()]
-        conn.close()
+        db = get_db()
+        if not db:
+            return jsonify({"error": "Database connection failed"}), 500
+            
+        # Get all words and sort by created_at in descending order
+        words = list(db.words.find().sort("created_at", -1))
+        
+        # Convert ObjectId to string for JSON serialization
+        for word in words:
+            word['_id'] = str(word['_id'])
+            # Convert datetime objects to ISO format strings
+            if 'created_at' in word:
+                word['created_at'] = word['created_at'].isoformat()
+            if 'updated_at' in word:
+                word['updated_at'] = word['updated_at'].isoformat()
+                
         return jsonify({"words": words})
     except Exception as e:
         logger.error(f"Error in get_words: {str(e)}")
@@ -146,7 +183,12 @@ def get_words():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({"status": "ok", "message": "Flask server is running"}), 200
+    # Check MongoDB connection
+    db_status = "connected" if mongo_client else "disconnected"
+    return jsonify({
+        "status": "ok" if mongo_client else "degraded",
+        "message": f"Flask server is running, MongoDB is {db_status}"
+    }), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))  # Use PORT from env, fallback to 5000 locally

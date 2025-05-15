@@ -5,17 +5,33 @@ This is a Flask-based backend that supports the vocabulary training feature of t
 
 ## Setup Instructions
 
-1. Install the required Python packages:
+1. Install MongoDB:
+   - For macOS: `brew install mongodb-community`
+   - For Windows: Download and install from [MongoDB website](https://www.mongodb.com/try/download/community)
+   - For Linux: Follow the [MongoDB installation guide](https://docs.mongodb.com/manual/administration/install-on-linux/)
+
+2. Start MongoDB:
+   - For macOS/Linux: `mongod --dbpath=/data/db`
+   - For Windows: Run MongoDB as a service or use MongoDB Compass
+
+3. Install the required Python packages:
    ```
-   pip install flask flask-cors nltk
+   pip install -r requirements.txt
    ```
 
-2. Start the server:
+4. Start the server:
    ```
    python backend.py
    ```
 
 The server will run on http://localhost:5000 by default.
+
+## Environment Variables
+
+You can configure the MongoDB connection using environment variables:
+
+- `MONGODB_URI`: MongoDB connection string (default: `mongodb://localhost:27017/`)
+- `PORT`: Port for the Flask server (default: 5000)
 
 ## API Endpoints
 
@@ -25,4 +41,4 @@ The server will run on http://localhost:5000 by default.
 
 ## Database
 
-The application uses a SQLite database (`vocabulary.db`) that will be created automatically in the same directory as the script. No additional setup is required.
+The application uses MongoDB with a database named `vocabulary_db` and a collection named `words`. The connection will be created automatically when the application starts.
