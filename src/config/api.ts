@@ -5,6 +5,12 @@ const API_CONFIG = {
   BASE_URL: import.meta.env.VITE_API_URL || "http://localhost:5000",
   // Fallback to the remote server if specified
   REMOTE_URL: "https://script-scribe-conlang-creator.onrender.com",
+  // Helper to determine if we're in development mode
+  isDevelopment: () => import.meta.env.DEV === true,
+  // Get the active API URL based on connection status
+  getActiveURL: function() {
+    return this.isDevelopment() ? this.BASE_URL : this.REMOTE_URL;
+  }
 };
 
 export default API_CONFIG;
