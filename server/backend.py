@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import nltk
@@ -8,6 +7,10 @@ import logging
 from pymongo import MongoClient
 from datetime import datetime
 from bson.objectid import ObjectId
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -26,8 +29,18 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # MongoDB connection setup
 def get_mongo_client():
     try:
-        # Try to get MongoDB URI from environment variable, otherwise use default
+        # Get MongoDB URI from environment variable
         mongo_uri = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/')
+        
+        # Get MongoDB password from environment variable
+        mongo_password = os.environ.get('MONGODB_PASSWORD')
+        
+        # If we have a password, replace the placeholder in the URI
+        if '<db_password>' in mongo_uri and mongo_password:
+            mongo_uri = mongo_uri.replace('<db_password>', mongo_password)
+            
+        logger.info(f"Connecting to MongoDB at: {mongo_uri.split('@')[1] if '@' in mongo_uri else mongo_uri}")
+        
         client = MongoClient(mongo_uri)
         # Test the connection
         client.admin.command('ping')
@@ -57,7 +70,7 @@ def init_db():
             db.words.create_index('word', unique=True)
             logger.info("MongoDB initialized successfully")
         else:
-            logger.info("MongoDB collection already exists")
+            logger.info("MongoDB collection already exists or could not be created")
     except Exception as e:
         logger.error(f"MongoDB initialization error: {str(e)}")
         logger.error(traceback.format_exc())
@@ -187,7 +200,8 @@ def health_check():
     db_status = "connected" if mongo_client else "disconnected"
     return jsonify({
         "status": "ok" if mongo_client else "degraded",
-        "message": f"Flask server is running, MongoDB is {db_status}"
+        "message": f"Flask server is running, MongoDB is {db_status}",
+        "database": os.environ.get('MONGODB_URI', 'Not configured').split('@')[1] if '@' in os.environ.get('MONGODB_URI', '') else "localhost"
     }), 200
 
 if __name__ == '__main__':

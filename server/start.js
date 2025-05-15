@@ -2,6 +2,17 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const dotenv = require('dotenv');
+
+// Path to the .env file
+const envPath = path.join(__dirname, '.env');
+
+// Load environment variables from .env file if it exists
+let envVars = {};
+if (fs.existsSync(envPath)) {
+  console.log('Loading environment variables from .env file');
+  envVars = dotenv.config({ path: envPath }).parsed || {};
+}
 
 // Check for Python environment
 const isPython3 = process.platform === 'win32' ? 'python' : 'python3';
@@ -20,7 +31,8 @@ console.log('Starting Flask backend server...');
 // Start the Flask server
 const flaskProcess = spawn(isPython3, [backendPath], {
   stdio: 'pipe',
-  detached: false
+  detached: false,
+  env: { ...process.env, ...envVars } // Pass environment variables to the Flask process
 });
 
 flaskProcess.stdout.on('data', (data) => {
