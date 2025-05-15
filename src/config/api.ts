@@ -10,7 +10,9 @@ const API_CONFIG = {
   // Get the active API URL based on connection status
   getActiveURL: function() {
     return this.isDevelopment() ? this.BASE_URL : this.REMOTE_URL;
-  }
+  },
+  // Timeout for API requests in milliseconds
+  TIMEOUT: 10000
 };
 
 export default API_CONFIG;

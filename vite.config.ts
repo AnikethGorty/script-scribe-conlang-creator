@@ -10,6 +10,7 @@ const startFlaskBackend = () => {
   return {
     name: 'start-flask-backend',
     configureServer() {
+      console.log("Starting Flask backend server via Vite plugin...");
       const serverProcess = spawn('node', ['server/start.js'], {
         stdio: 'inherit',
         shell: true
@@ -17,6 +18,7 @@ const startFlaskBackend = () => {
 
       // Ensure the Flask server is terminated when Vite exits
       process.on('exit', () => {
+        console.log("Vite shutting down, terminating Flask server...");
         serverProcess.kill();
       });
     }
@@ -28,6 +30,14 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      // Proxy API requests to Flask server in development
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
   },
   plugins: [
     react(),

@@ -35,6 +35,35 @@ flaskProcess.on('close', (code) => {
   console.log(`Flask backend process exited with code ${code}`);
 });
 
+flaskProcess.on('error', (err) => {
+  console.error('Failed to start Flask process:', err);
+});
+
+// Health check ping to verify server is running
+setTimeout(() => {
+  const http = require('http');
+  const options = {
+    hostname: 'localhost',
+    port: 5000,
+    path: '/health',
+    method: 'GET'
+  };
+
+  const req = http.request(options, res => {
+    if (res.statusCode === 200) {
+      console.log('Flask server health check passed!');
+    } else {
+      console.warn(`Flask server health check returned status: ${res.statusCode}`);
+    }
+  });
+
+  req.on('error', error => {
+    console.error('Flask server health check failed. Server might not be running properly:', error.message);
+  });
+
+  req.end();
+}, 3000);
+
 // Handle Node process exit
 process.on('SIGINT', () => {
   console.log('Stopping Flask backend server...');

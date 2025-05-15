@@ -144,6 +144,10 @@ def get_words():
         logger.error(traceback.format_exc())
         return jsonify({"error": f"Server error: {str(e)}"}), 500
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "ok", "message": "Flask server is running"}), 200
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))  # Use PORT from env, fallback to 5000 locally
     app.run(host='0.0.0.0', port=port, debug=True)  # Enable debug mode for development
