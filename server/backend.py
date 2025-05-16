@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import nltk
@@ -29,19 +30,37 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # MongoDB connection setup
 def get_mongo_client():
     try:
-        # Get MongoDB URI from environment variable
-        mongo_uri = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/')
+        # Try to get connection string directly
+        mongo_uri = os.environ.get('STRING')
         
-        # Get MongoDB password from environment variable
-        mongo_password = os.environ.get('MONGODB_PASSWORD')
-        
-        # If we have a password, replace the placeholder in the URI
-        if '<db_password>' in mongo_uri and mongo_password:
-            mongo_uri = mongo_uri.replace('<db_password>', mongo_password)
+        # If not available, try to build it using separate credentials
+        if not mongo_uri:
+            base_uri = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/')
+            password = os.environ.get('PASSWORD')
             
-        logger.info(f"Connecting to MongoDB at: {mongo_uri.split('@')[1] if '@' in mongo_uri else mongo_uri}")
+            # If we have a password, replace the placeholder in the URI
+            if '<db_password>' in base_uri and password:
+                mongo_uri = base_uri.replace('<db_password>', password)
+            elif password:
+                # Try to extract username and host from URI format
+                logger.info("Building connection string from separate credentials")
+                parts = base_uri.split('@')
+                if len(parts) > 1:
+                    user_part = parts[0].split('://')
+                    if len(user_part) > 1:
+                        protocol = user_part[0]
+                        username = user_part[1].split(':')[0]
+                        mongo_uri = f"{protocol}://{username}:{password}@{parts[1]}"
+                else:
+                    mongo_uri = base_uri
+            else:
+                mongo_uri = base_uri
+                
+        # Log connection attempt (redact password for security)
+        safe_uri = mongo_uri.split('@')[-1] if '@' in mongo_uri else mongo_uri.replace("mongodb://", "")
+        logger.info(f"Attempting MongoDB connection to: {safe_uri}")
         
-        client = MongoClient(mongo_uri)
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
         # Test the connection
         client.admin.command('ping')
         logger.info("MongoDB connected successfully")
@@ -198,10 +217,39 @@ def get_words():
 def health_check():
     # Check MongoDB connection
     db_status = "connected" if mongo_client else "disconnected"
+    mongodb_details = {}
+    
+    # Get connection details for debugging
+    if mongo_client:
+        try:
+            # Get server info for additional details
+            server_info = mongo_client.server_info()
+            mongodb_details = {
+                "version": server_info.get("version", "unknown"),
+                "connection": "successful",
+                "database": os.environ.get('STRING', 'Not configured').split('@')[1] if '@' in os.environ.get('STRING', '') else "localhost"
+            }
+        except Exception as e:
+            mongodb_details = {
+                "connection": "failed",
+                "error": str(e),
+                "database": os.environ.get('STRING', 'Not configured').split('@')[1] if '@' in os.environ.get('STRING', '') else "localhost"
+            }
+    else:
+        mongodb_details = {
+            "connection": "failed",
+            "error": "MongoDB client not initialized",
+            "database": os.environ.get('STRING', 'Not configured').split('@')[1] if '@' in os.environ.get('STRING', '') else "localhost"
+        }
+    
     return jsonify({
         "status": "ok" if mongo_client else "degraded",
         "message": f"Flask server is running, MongoDB is {db_status}",
-        "database": os.environ.get('MONGODB_URI', 'Not configured').split('@')[1] if '@' in os.environ.get('MONGODB_URI', '') else "localhost"
+        "mongodb": mongodb_details,
+        "env_vars": {
+            "has_string": "STRING" in os.environ,
+            "has_password": "PASSWORD" in os.environ
+        }
     }), 200
 
 if __name__ == '__main__':
