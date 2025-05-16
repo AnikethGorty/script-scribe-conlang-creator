@@ -17,19 +17,18 @@ if (fs.existsSync(envPath)) {
 // Check for Python environment
 const isPython3 = process.platform === 'win32' ? 'python' : 'python3';
 
-// Path to the backend.py file
-const backendPath = path.join(__dirname, 'backend.py');
+// Path to the app.py file - updated to use the new entry point
+const appPath = path.join(__dirname, 'app.py');
 
-// Ensure the backend file exists
-if (!fs.existsSync(backendPath)) {
-  console.error('Error: backend.py not found at:', backendPath);
-  process.exit(1);
-}
+// Fall back to backend.py if app.py doesn't exist yet
+const backendPath = path.join(__dirname, 'backend.py');
+const scriptPath = fs.existsSync(appPath) ? appPath : backendPath;
 
 console.log('Starting Flask backend server...');
+console.log(`Using script: ${scriptPath}`);
 
 // Start the Flask server
-const flaskProcess = spawn(isPython3, [backendPath], {
+const flaskProcess = spawn(isPython3, [scriptPath], {
   stdio: 'pipe',
   detached: false,
   env: { ...process.env, ...envVars } // Pass environment variables to the Flask process
