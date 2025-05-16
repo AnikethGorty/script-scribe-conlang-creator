@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import nltk
@@ -12,6 +11,9 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+# Print MongoDB connection string for debugging
+print("MongoDB STRING:", os.getenv("STRING"))
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -224,21 +226,37 @@ def health_check():
         try:
             # Get server info for additional details
             server_info = mongo_client.server_info()
+            
+            # Get connection string but mask sensitive parts
+            conn_string = os.environ.get('STRING', 'Not configured')
+            # Show only part of the connection string for security
+            if conn_string != 'Not configured' and '@' in conn_string:
+                # Mask the password in the connection string
+                parts = conn_string.split('@')
+                auth_part = parts[0].split('://')
+                # Show only hostname, not credentials
+                masked_string = f"{auth_part[0]}://***:***@{parts[1]}"
+            else:
+                masked_string = "mongodb://***:***@hostname"
+                
             mongodb_details = {
                 "version": server_info.get("version", "unknown"),
                 "connection": "successful",
+                "connection_string_preview": masked_string,
                 "database": os.environ.get('STRING', 'Not configured').split('@')[1] if '@' in os.environ.get('STRING', '') else "localhost"
             }
         except Exception as e:
             mongodb_details = {
                 "connection": "failed",
                 "error": str(e),
+                "connection_string_preview": "Could not retrieve connection string",
                 "database": os.environ.get('STRING', 'Not configured').split('@')[1] if '@' in os.environ.get('STRING', '') else "localhost"
             }
     else:
         mongodb_details = {
             "connection": "failed",
             "error": "MongoDB client not initialized",
+            "connection_string_preview": "No active connection",
             "database": os.environ.get('STRING', 'Not configured').split('@')[1] if '@' in os.environ.get('STRING', '') else "localhost"
         }
     

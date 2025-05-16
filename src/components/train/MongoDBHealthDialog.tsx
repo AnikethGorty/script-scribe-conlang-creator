@@ -117,6 +117,14 @@ export function MongoDBHealthDialog() {
                   )}
                 </div>
 
+                {/* Display connection string information */}
+                {healthStatus.details?.mongodb?.connection_string_preview && (
+                  <div className="px-3 py-2 bg-gray-100 rounded-md text-sm font-mono break-all">
+                    <p className="font-medium mb-1">Connection String:</p>
+                    <code>{healthStatus.details.mongodb.connection_string_preview}</code>
+                  </div>
+                )}
+
                 {healthStatus.details?.mongodb?.connection === "failed" && (
                   <Alert variant="destructive" className="mt-2">
                     <AlertDescription>
