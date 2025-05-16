@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { DatabaseOff, Database, CircleCheck, CircleX, LoaderCircle } from "lucide-react";
+import { Database, CircleCheck, CircleX, LoaderCircle } from "lucide-react";
 import { checkServerHealth } from "@/services/trainingService";
 
 type HealthStatus = {
@@ -69,7 +69,7 @@ export function MongoDBHealthDialog() {
             ) : healthStatus.isHealthy ? (
               <Database className="text-green-500" />
             ) : (
-              <DatabaseOff className="text-red-500" />
+              <Database className="text-red-500" />
             )}
             MongoDB Connection Status
           </DialogTitle>
