@@ -1,4 +1,3 @@
-
 import axios from "axios";
 import API_CONFIG from "@/config/api.ts";
 import { toast } from "@/components/ui/sonner";
@@ -9,7 +8,7 @@ const apiClient = axios.create({
 });
 
 // Function to check if the server is available
-export const checkServerHealth = async (): Promise<boolean> => {
+export const checkServerHealth = async (): Promise<{isHealthy: boolean, details: any}> => {
   try {
     const response = await apiClient.get(`${API_CONFIG.getActiveURL()}/health`, { 
       timeout: 3000 
@@ -26,10 +25,20 @@ export const checkServerHealth = async (): Promise<boolean> => {
       }
     }
     
-    return response.status === 200;
+    return {
+      isHealthy: response.status === 200,
+      details: response.data
+    };
   } catch (error) {
     console.error("Server health check failed:", error);
-    return false;
+    return {
+      isHealthy: false,
+      details: { 
+        error: axios.isAxiosError(error) ? 
+          (error.message || "Network connection failed") : 
+          "Unknown error" 
+      }
+    };
   }
 };
 

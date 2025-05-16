@@ -7,6 +7,7 @@ import LanguageSelector from "@/components/train/LanguageSelector";
 import ConlangTypingArea from "@/components/train/ConlangTypingArea";
 import WordDefinitionForm from "@/components/train/WordDefinitionForm";
 import { parseSentence, submitWordData } from "@/services/trainingService";
+import MongoDBHealthDialog from "@/components/train/MongoDBHealthDialog";
 
 // Word types for categorizing vocabulary
 const wordTypes = [
@@ -121,6 +122,9 @@ const Train = () => {
   return (
     <div className="container mx-auto p-4 max-w-3xl">
       <h2 className="text-2xl font-bold mb-6">Train AI Vocabulary</h2>
+      
+      {/* MongoDB Health Dialog */}
+      <MongoDBHealthDialog />
       
       <LanguageSelector
         languages={languages}
