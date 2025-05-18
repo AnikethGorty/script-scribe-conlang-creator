@@ -1,13 +1,15 @@
-
 import React, { useState, useEffect } from 'react';
 import { toast } from "@/components/ui/sonner";
+import { Button } from "@/components/ui/button";
 import { ConlangLanguage } from "@/types/language";
 import { getLanguages } from "@/lib/languageStore";
 import LanguageSelector from "@/components/train/LanguageSelector";
 import ConlangTypingArea from "@/components/train/ConlangTypingArea";
 import WordDefinitionForm from "@/components/train/WordDefinitionForm";
+import WordDictionary from "@/components/train/WordDictionary";
 import { parseSentence, submitWordData } from "@/services/trainingService";
 import MongoDBHealthDialog from "@/components/train/MongoDBHealthDialog";
+import { Book } from "lucide-react";
 
 // Word types for categorizing vocabulary
 const wordTypes = [
@@ -25,6 +27,9 @@ const Train = () => {
   const [meaning, setMeaning] = useState("");
   const [type, setType] = useState(wordTypes[0]);
   const [context, setContext] = useState("");
+  
+  // State for dictionary feature
+  const [showDictionary, setShowDictionary] = useState(false);
   
   // State variables for conlang typing
   const [languages, setLanguages] = useState<ConlangLanguage[]>([]);
@@ -122,9 +127,24 @@ const Train = () => {
     }
   };
 
+  const toggleDictionary = () => {
+    setShowDictionary(!showDictionary);
+  };
+
   return (
     <div className="container mx-auto p-4 max-w-3xl">
       <h2 className="text-2xl font-bold mb-6">Train AI Vocabulary</h2>
+      
+      <div className="flex justify-between items-center mb-4">
+        <Button
+          variant="outline"
+          className="flex items-center gap-2"
+          onClick={toggleDictionary}
+        >
+          <Book size={16} />
+          View Dictionary
+        </Button>
+      </div>
       
       {/* MongoDB Health Dialog */}
       <MongoDBHealthDialog />
@@ -160,6 +180,12 @@ const Train = () => {
           wordTypes={wordTypes}
         />
       )}
+
+      {/* Word Dictionary */}
+      <WordDictionary 
+        isOpen={showDictionary} 
+        onClose={() => setShowDictionary(false)} 
+      />
     </div>
   );
 };
