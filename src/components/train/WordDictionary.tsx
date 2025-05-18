@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search } from "lucide-react";
+import { Search, Database } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { 
   Sheet,
@@ -22,12 +22,14 @@ import {
   SheetDescription,
   SheetClose
 } from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
 
 interface Word {
   word: string;
   meaning: string;
   type: string;
   context: string;
+  source?: string;  // Added to track which database the word comes from
 }
 
 interface WordDictionaryProps {
@@ -42,6 +44,7 @@ const WordDictionary: React.FC<WordDictionaryProps> = ({
   const [words, setWords] = useState<Word[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [dataSource, setDataSource] = useState<string | null>(null);
 
   useEffect(() => {
     // When the dictionary is opened, load the words
@@ -56,6 +59,7 @@ const WordDictionary: React.FC<WordDictionaryProps> = ({
       const response = await getWords();
       if (response && response.words) {
         setWords(response.words);
+        setDataSource(response.source || null);
       }
     } catch (error) {
       console.error("Error loading words:", error);
@@ -86,6 +90,12 @@ const WordDictionary: React.FC<WordDictionaryProps> = ({
           <SheetDescription>
             Browse all saved words or search for specific terms
           </SheetDescription>
+          {dataSource && (
+            <Badge variant="outline" className="mt-2 flex items-center gap-1 w-fit">
+              <Database className="h-3 w-3" /> 
+              {dataSource === "mongodb" ? "MongoDB" : "Local SQLite"}
+            </Badge>
+          )}
         </SheetHeader>
 
         <div className="flex items-center space-x-2 mb-6">

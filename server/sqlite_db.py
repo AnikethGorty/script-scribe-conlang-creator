@@ -109,16 +109,17 @@ def get_all_words_from_sqlite():
         rows = cursor.fetchall()
         
         words = []
-        for row in dict(row) for row in rows:
+        for row in rows:
+            word_dict = dict(row)  # Convert row to dictionary
             words.append({
-                "_id": str(row["id"]),
-                "word": row["word"],
-                "meaning": row["meaning"],
-                "type": row["type"],
-                "context": row["context"],
-                "created_at": row["created_at"],
-                "updated_at": row["updated_at"],
-                "synced_to_mongodb": bool(row["synced_to_mongodb"])
+                "_id": str(word_dict["id"]),
+                "word": word_dict["word"],
+                "meaning": word_dict["meaning"],
+                "type": word_dict["type"],
+                "context": word_dict["context"],
+                "created_at": word_dict["created_at"],
+                "updated_at": word_dict["updated_at"],
+                "synced_to_mongodb": bool(word_dict["synced_to_mongodb"])
             })
             
         conn.close()
