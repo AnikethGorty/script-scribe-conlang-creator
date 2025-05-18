@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ArrowRight } from "lucide-react";
 
 interface WordDefinitionFormProps {
   currentWord: string;
@@ -41,6 +42,8 @@ const WordDefinitionForm: React.FC<WordDefinitionFormProps> = ({
   loading,
   wordTypes
 }) => {
+  const isLastWord = currentIndex + 1 === totalWords;
+
   return (
     <Card className="mt-8">
       <CardHeader>
@@ -84,13 +87,14 @@ const WordDefinitionForm: React.FC<WordDefinitionFormProps> = ({
           </div>
         </div>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex justify-between">
         <Button 
           onClick={onSubmit} 
           disabled={loading || !meaning.trim()}
-          className="w-full"
+          className={isLastWord ? "w-full" : ""}
         >
-          {loading ? "Saving..." : "Save Word"}
+          {loading ? "Saving..." : (isLastWord ? "Save Word" : "Save & Next")}
+          {!isLastWord && <ArrowRight className="ml-2" size={16} />}
         </Button>
       </CardFooter>
     </Card>

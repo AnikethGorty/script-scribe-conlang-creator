@@ -77,6 +77,9 @@ const Train = () => {
       } else {
         setWordList(data.unknown_words);
         setCurrentIndex(0);
+        setMeaning("");  // Reset the form for the first word
+        setType(wordTypes[0]);
+        setContext("");
         setShowForm(true);
         toast.success(`Found ${data.unknown_words.length} word(s) to learn`);
       }
@@ -100,7 +103,7 @@ const Train = () => {
       await submitWordData(word, meaning, type, context);
       toast.success(`Word "${word}" saved successfully`);
 
-      // Reset form
+      // Reset form for next word
       setMeaning("");
       setType(wordTypes[0]);
       setContext("");
