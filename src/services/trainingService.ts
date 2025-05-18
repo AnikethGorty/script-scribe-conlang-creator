@@ -24,6 +24,12 @@ export const checkServerHealth = async (): Promise<{isHealthy: boolean, details:
       if (response.data.mongodb && response.data.mongodb.connection === "failed") {
         toast.error(`Database connection issue: ${response.data.mongodb.error || "Unknown error"}`);
       }
+      
+      // Alert if both databases are unavailable
+      if (response.data.sqlite && response.data.sqlite.status !== "active" && 
+          response.data.mongodb && response.data.mongodb.connection !== "successful") {
+        toast.error("Critical: All database connections failed. Your word data cannot be saved!");
+      }
     }
     
     return {
@@ -37,7 +43,10 @@ export const checkServerHealth = async (): Promise<{isHealthy: boolean, details:
       details: { 
         error: axios.isAxiosError(error) ? 
           (error.message || "Network connection failed") : 
-          "Unknown error" 
+          "Unknown error",
+        status: "error", 
+        mongodb: { connection: "failed" },
+        sqlite: { status: "unknown" } 
       }
     };
   }
@@ -62,8 +71,8 @@ export const parseSentence = async (sentence: string) => {
           toast.error("Cannot connect to server. Please check if the backend is running and properly configured.");
           
           // Try to do a health check
-          checkServerHealth().then(isHealthy => {
-            if (!isHealthy) {
+          checkServerHealth().then(health => {
+            if (!health.isHealthy) {
               toast.error("Backend server is not responding. Please check server logs for details.");
             }
           });
@@ -100,6 +109,10 @@ export const submitWordData = async (word: string, meaning: string, type: string
     // Show toast with storage information
     if (response.data.storage === "sqlite") {
       toast.info(`Word saved to local SQLite database. Will sync to MongoDB when connection is restored.`);
+    } else if (response.data.storage === "mongodb") {
+      toast.success(`Word saved to MongoDB database.`);
+    } else if (response.data.storage === "none") {
+      toast.error(`Failed to save word. All database connections unavailable.`);
     }
     
     return response.data;

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Database, CircleCheck, CircleX, LoaderCircle, RefreshCw, HardDrive } from "lucide-react";
+import { Database, CircleCheck, CircleX, LoaderCircle, RefreshCw, HardDrive, AlertTriangle } from "lucide-react";
 import { checkServerHealth } from "@/services/trainingService";
 import { syncSQLiteToMongoDB } from "@/services/trainingService";
 import { toast } from "@/components/ui/sonner";
@@ -79,8 +79,25 @@ export function MongoDBHealthDialog() {
     }
   };
 
-  // Check if SQLite is being used as fallback
+  // Get the database statuses
+  const mongodbAvailable = healthStatus.details?.mongodb?.connection === "successful";
+  const sqliteAvailable = healthStatus.details?.sqlite?.status === "active";
   const isSqliteFallbackActive = healthStatus.details?.sqlite?.fallback_active;
+  
+  // Determine overall connection status message
+  const getConnectionStatusMessage = () => {
+    if (healthStatus.loading) return "Checking connections...";
+    
+    if (mongodbAvailable && sqliteAvailable) {
+      return "Both MongoDB and SQLite are available.";
+    } else if (mongodbAvailable) {
+      return "MongoDB is available, but SQLite is not accessible.";
+    } else if (sqliteAvailable) {
+      return "Using SQLite as fallback storage. MongoDB is unavailable.";
+    } else {
+      return "Critical: No database connections available!";
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -89,15 +106,17 @@ export function MongoDBHealthDialog() {
           <DialogTitle className="flex items-center gap-2">
             {healthStatus.loading ? (
               <LoaderCircle className="animate-spin" />
-            ) : healthStatus.isHealthy ? (
+            ) : mongodbAvailable && sqliteAvailable ? (
               <Database className="text-green-500" />
+            ) : (!mongodbAvailable && !sqliteAvailable) ? (
+              <AlertTriangle className="text-red-500" />
             ) : (
-              <Database className="text-red-500" />
+              <Database className="text-amber-500" />
             )}
             Database Connection Status
           </DialogTitle>
           <DialogDescription>
-            Checking if the backend service and databases are available
+            {getConnectionStatusMessage()}
           </DialogDescription>
         </DialogHeader>
 
@@ -179,10 +198,17 @@ export function MongoDBHealthDialog() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Status:</span>
-                        <span className="flex items-center text-green-500">
-                          <CircleCheck className="mr-1 h-4 w-4" />
-                          {healthStatus.details.sqlite.status}
-                        </span>
+                        {healthStatus.details.sqlite.status === "active" ? (
+                          <span className="flex items-center text-green-500">
+                            <CircleCheck className="mr-1 h-4 w-4" />
+                            Active
+                          </span>
+                        ) : (
+                          <span className="flex items-center text-red-500">
+                            <CircleX className="mr-1 h-4 w-4" />
+                            Unavailable
+                          </span>
+                        )}
                       </div>
                       
                       <div className="flex items-center gap-2">
@@ -206,8 +232,26 @@ export function MongoDBHealthDialog() {
                           </AlertDescription>
                         </Alert>
                       )}
+                      
+                      {!sqliteAvailable && (
+                        <Alert variant="destructive" className="mt-2">
+                          <AlertDescription>
+                            SQLite is not accessible. This may indicate an issue with file permissions or disk space.
+                          </AlertDescription>
+                        </Alert>
+                      )}
                     </div>
                   </div>
+                )}
+                
+                {/* Critical Error Alert - Both databases unavailable */}
+                {!mongodbAvailable && !sqliteAvailable && (
+                  <Alert variant="destructive" className="mt-4 border-red-600">
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    <AlertDescription className="font-semibold">
+                      Critical: All database connections failed. Your word data cannot be saved!
+                    </AlertDescription>
+                  </Alert>
                 )}
               </div>
               
@@ -240,9 +284,11 @@ export function MongoDBHealthDialog() {
                     <li>Your MongoDB connection string is correctly configured in .env</li>
                     <li>MongoDB Atlas service is available</li>
                   </ul>
-                  <p className="mt-2 font-medium">
-                    Don't worry! Your vocabulary is safely stored in the local database.
-                  </p>
+                  {sqliteAvailable && (
+                    <p className="mt-2 font-medium">
+                      Don't worry! Your vocabulary is safely stored in the local database.
+                    </p>
+                  )}
                 </div>
               )}
             </>
