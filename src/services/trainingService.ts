@@ -1,3 +1,4 @@
+
 import axios from "axios";
 import API_CONFIG from "@/config/api.ts";
 import { toast } from "@/components/ui/sonner";
@@ -95,6 +96,12 @@ export const submitWordData = async (word: string, meaning: string, type: string
       type,
       context
     });
+    
+    // Show toast with storage information
+    if (response.data.storage === "sqlite") {
+      toast.info(`Word saved to local SQLite database. Will sync to MongoDB when connection is restored.`);
+    }
+    
     return response.data;
   } catch (error) {
     console.error("Error submitting word data:", error);
@@ -126,6 +133,12 @@ export const submitWordData = async (word: string, meaning: string, type: string
 export const getWords = async () => {
   try {
     const response = await apiClient.get(`${API_CONFIG.getActiveURL()}/get-words`);
+    
+    // Show toast with storage information if from SQLite
+    if (response.data.source === "sqlite") {
+      toast.info("Showing words from local SQLite database. MongoDB is currently unavailable.");
+    }
+    
     return response.data;
   } catch (error) {
     console.error("Error getting words:", error);
@@ -143,5 +156,29 @@ export const getWords = async () => {
     
     toast.error("Failed to retrieve words from database.");
     throw new Error("Failed to get words");
+  }
+};
+
+// Function to sync SQLite data to MongoDB
+export const syncSQLiteToMongoDB = async () => {
+  try {
+    const response = await apiClient.post(`${API_CONFIG.getActiveURL()}/sync-to-mongodb`);
+    return response.data;
+  } catch (error) {
+    console.error("Error syncing SQLite to MongoDB:", error);
+    
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        const errorMessage = error.response.data?.error || error.response.statusText;
+        toast.error(`Sync error: ${errorMessage}`);
+        throw new Error(`Server error: ${errorMessage}`);
+      } else if (error.request) {
+        toast.error("No response from server. Please check your connection and server status.");
+        throw new Error("No response from server. Please check your connection.");
+      }
+    }
+    
+    toast.error("Failed to sync data to MongoDB.");
+    throw new Error("Failed to sync data");
   }
 };

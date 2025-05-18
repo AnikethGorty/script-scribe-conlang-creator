@@ -2,7 +2,7 @@
 from flask import request, jsonify
 import logging
 import traceback
-from server.database import get_known_words, add_word, get_all_words, get_mongodb_status
+from server.database import get_known_words, add_word, get_all_words, get_mongodb_status, sync_sqlite_to_mongodb
 from server.nlp import tokenize_sentence
 
 logger = logging.getLogger(__name__)
@@ -69,7 +69,16 @@ def register_routes(app):
         else:
             return jsonify(result), 500
 
+    @app.route('/sync-to-mongodb', methods=['POST'])
+    def sync_to_mongodb():
+        """Endpoint to manually trigger synchronization from SQLite to MongoDB"""
+        result, success = sync_sqlite_to_mongodb()
+        
+        if success:
+            return jsonify(result)
+        else:
+            return jsonify(result), 500
+
     @app.route('/health', methods=['GET'])
     def health_check():
         return jsonify(get_mongodb_status()), 200
-
