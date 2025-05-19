@@ -1,4 +1,3 @@
-
 import axios from "axios";
 import API_CONFIG from "@/config/api.ts";
 import { toast } from "@/components/ui/sonner";
@@ -12,23 +11,22 @@ const apiClient = axios.create({
 export const checkServerHealth = async (): Promise<{isHealthy: boolean, details: any}> => {
   try {
     const response = await apiClient.get(`${API_CONFIG.getActiveURL()}/health`, { 
-      timeout: 3000 
+      timeout: 5000 
     });
     
     // Log detailed information about the server health
     console.log("Server health response:", response.data);
     
-    if (response.data.status !== "ok") {
-      // Show warning if server is in degraded state
-      console.warn("Server is in degraded state:", response.data);
-      if (response.data.mongodb && response.data.mongodb.connection === "failed") {
-        toast.error(`Database connection issue: ${response.data.mongodb.error || "Unknown error"}`);
-      }
-      
-      // Alert if both databases are unavailable
-      if (response.data.sqlite && response.data.sqlite.status !== "active" && 
-          response.data.mongodb && response.data.mongodb.connection !== "successful") {
-        toast.error("Critical: All database connections failed. Your word data cannot be saved!");
+    // Show warning toast for database connection issues
+    if (response.data.status === "critical") {
+      toast.error("Critical: All database connections failed. Words cannot be saved!");
+    } else if (response.data.status === "degraded") {
+      if (response.data.mongodb && response.data.mongodb.connection === "failed" && 
+          response.data.sqlite && response.data.sqlite.status === "active") {
+        toast.warning("MongoDB connection failed. Using SQLite as fallback storage.");
+      } else if (response.data.sqlite && response.data.sqlite.status !== "active" && 
+                 response.data.mongodb && response.data.mongodb.connection === "successful") {
+        toast.warning("SQLite is unavailable. Using MongoDB only.");
       }
     }
     
@@ -38,6 +36,8 @@ export const checkServerHealth = async (): Promise<{isHealthy: boolean, details:
     };
   } catch (error) {
     console.error("Server health check failed:", error);
+    toast.error("Failed to connect to the server. Please check if the backend is running.");
+    
     return {
       isHealthy: false,
       details: { 
@@ -46,7 +46,7 @@ export const checkServerHealth = async (): Promise<{isHealthy: boolean, details:
           "Unknown error",
         status: "error", 
         mongodb: { connection: "failed" },
-        sqlite: { status: "unknown" } 
+        sqlite: { status: "error" } 
       }
     };
   }
@@ -106,7 +106,7 @@ export const submitWordData = async (word: string, meaning: string, type: string
       context
     });
     
-    // Show toast with storage information
+    // Show toast with appropriate storage information
     if (response.data.storage === "sqlite") {
       toast.info(`Word saved to local SQLite database. Will sync to MongoDB when connection is restored.`);
     } else if (response.data.storage === "mongodb") {

@@ -1,4 +1,3 @@
-
 import os
 import sqlite3
 import logging
@@ -14,13 +13,46 @@ DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'vocabulary.db')
 def get_sqlite_connection():
     """Get a connection to the SQLite database"""
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        # Ensure the directory exists
+        db_dir = os.path.dirname(DATABASE_PATH)
+        if not os.path.exists(db_dir):
+            os.makedirs(db_dir)
+            
+        conn = sqlite3.connect(DATABASE_PATH, timeout=10)
         conn.row_factory = sqlite3.Row  # This enables column access by name
         return conn
     except Exception as e:
         logger.error(f"SQLite connection error: {str(e)}")
         logger.error(traceback.format_exc())
         return None
+
+def check_sqlite_status():
+    """Check if SQLite is accessible and working properly"""
+    try:
+        conn = get_sqlite_connection()
+        if conn:
+            cursor = conn.cursor()
+            # Simple query to test connection
+            cursor.execute("SELECT 1")
+            result = cursor.fetchone()
+            conn.close()
+            
+            return {
+                "status": "active" if result else "error",
+                "error": None
+            }
+        else:
+            return {
+                "status": "error",
+                "error": "Could not establish connection to SQLite"
+            }
+    except Exception as e:
+        logger.error(f"SQLite health check error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return {
+            "status": "error",
+            "error": str(e)
+        }
 
 def init_sqlite_db():
     """Initialize the SQLite database with required tables"""

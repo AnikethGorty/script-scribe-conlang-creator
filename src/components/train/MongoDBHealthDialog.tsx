@@ -28,14 +28,19 @@ export function MongoDBHealthDialog() {
       try {
         const result = await checkServerHealth();
         setHealthStatus({
-          isHealthy: result.isHealthy && result.details?.mongodb?.connection === "successful",
+          isHealthy: result.isHealthy,
           details: result.details,
           loading: false,
         });
       } catch (error) {
         setHealthStatus({
           isHealthy: false,
-          details: { error: "Failed to check server health" },
+          details: { 
+            status: "error",
+            error: "Failed to check server health", 
+            mongodb: { connection: "failed" },
+            sqlite: { status: "error" }
+          },
           loading: false,
         });
       }
@@ -49,14 +54,19 @@ export function MongoDBHealthDialog() {
     try {
       const result = await checkServerHealth();
       setHealthStatus({
-        isHealthy: result.isHealthy && result.details?.mongodb?.connection === "successful",
+        isHealthy: result.isHealthy,
         details: result.details,
         loading: false,
       });
     } catch (error) {
       setHealthStatus({
         isHealthy: false,
-        details: { error: "Failed to check server health" },
+        details: { 
+          status: "error",
+          error: "Failed to check server health",
+          mongodb: { connection: "failed" },
+          sqlite: { status: "error" }
+        },
         loading: false,
       });
     }
@@ -83,6 +93,7 @@ export function MongoDBHealthDialog() {
   const mongodbAvailable = healthStatus.details?.mongodb?.connection === "successful";
   const sqliteAvailable = healthStatus.details?.sqlite?.status === "active";
   const isSqliteFallbackActive = healthStatus.details?.sqlite?.fallback_active;
+  const isCritical = healthStatus.details?.status === "critical";
   
   // Determine overall connection status message
   const getConnectionStatusMessage = () => {
@@ -108,7 +119,7 @@ export function MongoDBHealthDialog() {
               <LoaderCircle className="animate-spin" />
             ) : mongodbAvailable && sqliteAvailable ? (
               <Database className="text-green-500" />
-            ) : (!mongodbAvailable && !sqliteAvailable) ? (
+            ) : isCritical ? (
               <AlertTriangle className="text-red-500" />
             ) : (
               <Database className="text-amber-500" />
@@ -145,7 +156,7 @@ export function MongoDBHealthDialog() {
                       ) : (
                         <span className="flex items-center text-amber-500">
                           <CircleX className="mr-1 h-4 w-4" />
-                          Degraded
+                          {isCritical ? "Critical" : "Degraded"}
                         </span>
                       )}
                     </div>
@@ -233,10 +244,10 @@ export function MongoDBHealthDialog() {
                         </Alert>
                       )}
                       
-                      {!sqliteAvailable && (
+                      {healthStatus.details.sqlite.status !== "active" && (
                         <Alert variant="destructive" className="mt-2">
                           <AlertDescription>
-                            SQLite is not accessible. This may indicate an issue with file permissions or disk space.
+                            {healthStatus.details.sqlite.error || "SQLite is not accessible. This may indicate an issue with file permissions or disk space."}
                           </AlertDescription>
                         </Alert>
                       )}
@@ -245,7 +256,7 @@ export function MongoDBHealthDialog() {
                 )}
                 
                 {/* Critical Error Alert - Both databases unavailable */}
-                {!mongodbAvailable && !sqliteAvailable && (
+                {isCritical && (
                   <Alert variant="destructive" className="mt-4 border-red-600">
                     <AlertTriangle className="h-4 w-4 mr-2" />
                     <AlertDescription className="font-semibold">
@@ -256,7 +267,7 @@ export function MongoDBHealthDialog() {
               </div>
               
               {/* Sync button - only show when MongoDB is available but we've been in fallback mode */}
-              {healthStatus.isHealthy && isSqliteFallbackActive && (
+              {mongodbAvailable && isSqliteFallbackActive && (
                 <div className="flex flex-col items-center p-3 border rounded-md bg-green-50 border-green-200">
                   <p className="text-sm text-center mb-2 text-green-700">
                     MongoDB is now available! You can sync data from your local database.
@@ -276,7 +287,7 @@ export function MongoDBHealthDialog() {
                 </div>
               )}
               
-              {!healthStatus.isHealthy && (
+              {!mongodbAvailable && (
                 <div className="text-sm text-muted-foreground">
                   <p>Please make sure:</p>
                   <ul className="list-disc pl-5 mt-1">

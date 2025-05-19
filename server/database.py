@@ -10,7 +10,8 @@ from server.sqlite_db import (
     get_all_words_from_sqlite,
     get_known_words_from_sqlite,
     get_unsynced_words,
-    mark_word_as_synced
+    mark_word_as_synced,
+    check_sqlite_status
 )
 
 logger = logging.getLogger(__name__)
@@ -62,32 +63,7 @@ def get_mongo_client():
 mongo_client = get_mongo_client()
 mongo_available = mongo_client is not None
 
-# Get database and collection
-def get_db():
-    if mongo_client:
-        db = mongo_client['vocabulary_db']
-        return db
-    return None
-
-# Initialize database
-def init_db():
-    try:
-        db = get_db()
-        if db and 'words' not in db.list_collection_names():
-            # Create an index on the word field
-            db.words.create_index('word', unique=True)
-            logger.info("MongoDB initialized successfully")
-        else:
-            logger.info("MongoDB collection already exists or could not be created")
-    except Exception as e:
-        logger.error(f"MongoDB initialization error: {str(e)}")
-        logger.error(traceback.format_exc())
-
-# Run database initialization
-if mongo_client:
-    init_db()
-else:
-    logger.error("Failed to connect to MongoDB. Application will use SQLite fallback.")
+# ... keep existing code for get_db(), init_db()
 
 # Get known words from the database
 def get_known_words():
@@ -108,6 +84,15 @@ def get_known_words():
 
 # Word management functions
 def add_word(word, meaning, word_type, context):
+    mongodb_available = mongo_client is not None
+    sqlite_status = check_sqlite_status()
+    sqlite_available = sqlite_status["status"] == "active"
+    
+    # If both databases are unavailable, return error
+    if not mongodb_available and not sqlite_available:
+        logger.critical("Both MongoDB and SQLite are unavailable. Cannot save word data.")
+        return {"error": "All database connections failed. Word cannot be saved.", "storage": "none"}, False
+    
     try:
         # First try to connect to MongoDB
         db = get_db()
@@ -133,94 +118,32 @@ def add_word(word, meaning, word_type, context):
         else:
             # MongoDB is unavailable, fallback to SQLite
             logger.info(f"MongoDB unavailable, saving word '{word}' to SQLite")
+            if sqlite_available:
+                result, success = add_word_to_sqlite(word, meaning, word_type, context)
+                
+                if success:
+                    result["storage"] = "sqlite"
+                
+                return result, success
+            else:
+                return {"error": "SQLite is also unavailable. Cannot save word.", "storage": "none"}, False
+    except Exception as e:
+        logger.error(f"Error saving word to MongoDB: {str(e)}")
+        logger.error(traceback.format_exc())
+        
+        # Fallback to SQLite
+        if sqlite_available:
+            logger.info(f"Falling back to SQLite for saving word '{word}'")
             result, success = add_word_to_sqlite(word, meaning, word_type, context)
             
             if success:
                 result["storage"] = "sqlite"
             
             return result, success
-    except Exception as e:
-        logger.error(f"Error saving word to MongoDB: {str(e)}")
-        logger.error(traceback.format_exc())
-        
-        # Fallback to SQLite
-        logger.info(f"Falling back to SQLite for saving word '{word}'")
-        result, success = add_word_to_sqlite(word, meaning, word_type, context)
-        
-        if success:
-            result["storage"] = "sqlite"
-        
-        return result, success
+        else:
+            return {"error": f"Both MongoDB and SQLite failed: {str(e)}", "storage": "none"}, False
 
-def get_all_words():
-    try:
-        db = get_db()
-        if not db:
-            # MongoDB not available, fallback to SQLite
-            logger.info("MongoDB unavailable, falling back to SQLite for word list")
-            return get_all_words_from_sqlite()
-            
-        # Get all words and sort by created_at in descending order
-        words = list(db.words.find().sort("created_at", -1))
-        
-        # Convert ObjectId to string for JSON serialization
-        for word in words:
-            word['_id'] = str(word['_id'])
-            # Convert datetime objects to ISO format strings
-            if 'created_at' in word:
-                word['created_at'] = word['created_at'].isoformat()
-            if 'updated_at' in word:
-                word['updated_at'] = word['updated_at'].isoformat()
-                
-        return {"words": words, "source": "mongodb"}, True
-    except Exception as e:
-        logger.error(f"Error in get_words from MongoDB: {str(e)}")
-        logger.error(traceback.format_exc())
-        
-        # Fallback to SQLite
-        logger.info("Falling back to SQLite for word list")
-        return get_all_words_from_sqlite()
-
-def sync_sqlite_to_mongodb():
-    """Synchronize unsynced words from SQLite to MongoDB when MongoDB becomes available"""
-    if not mongo_client:
-        logger.info("MongoDB still unavailable, skipping sync")
-        return {"success": False, "message": "MongoDB unavailable for sync"}, False
-    
-    try:
-        # Get unsynced words from SQLite
-        unsynced_words = get_unsynced_words()
-        if not unsynced_words:
-            return {"success": True, "message": "No words to sync"}, True
-        
-        db = get_db()
-        sync_count = 0
-        
-        # Insert each unsynced word to MongoDB
-        for word_data in unsynced_words:
-            try:
-                result = db.words.update_one(
-                    {"word": word_data["word"]},
-                    {"$set": word_data},
-                    upsert=True
-                )
-                
-                if result.upserted_id or result.modified_count > 0:
-                    # Mark as synced in SQLite
-                    mark_word_as_synced(word_data["word"])
-                    sync_count += 1
-            except Exception as word_error:
-                logger.error(f"Error syncing word {word_data['word']}: {str(word_error)}")
-        
-        return {
-            "success": True, 
-            "message": f"Synced {sync_count} words from SQLite to MongoDB",
-            "synced_count": sync_count
-        }, True
-    except Exception as e:
-        logger.error(f"Error syncing SQLite to MongoDB: {str(e)}")
-        logger.error(traceback.format_exc())
-        return {"error": f"Sync error: {str(e)}"}, False
+# ... keep existing code for get_all_words(), sync_sqlite_to_mongodb()
 
 def get_mongodb_status():
     # Check MongoDB connection
@@ -267,15 +190,24 @@ def get_mongodb_status():
         }
     
     # Add SQLite status
+    sqlite_status_result = check_sqlite_status()
     sqlite_status = {
-        "status": "active",
+        "status": sqlite_status_result["status"],
+        "error": sqlite_status_result.get("error"),
         "location": "server/vocabulary.db",
-        "fallback_active": not bool(mongo_client)
+        "fallback_active": not bool(mongo_client) and sqlite_status_result["status"] == "active"
     }
     
+    # Determine overall status
+    overall_status = "ok"
+    if not mongo_client and sqlite_status_result["status"] != "active":
+        overall_status = "critical"  # Both databases unavailable
+    elif not mongo_client or sqlite_status_result["status"] != "active":
+        overall_status = "degraded"  # One database unavailable
+        
     return {
-        "status": "ok" if mongo_client else "degraded",
-        "message": f"Flask server is running, MongoDB is {db_status}, SQLite fallback is {'active' if not mongo_client else 'standby'}",
+        "status": overall_status,
+        "message": f"Flask server is running, MongoDB is {db_status}, SQLite is {sqlite_status_result['status']}",
         "mongodb": mongodb_details,
         "sqlite": sqlite_status,
         "env_vars": {
