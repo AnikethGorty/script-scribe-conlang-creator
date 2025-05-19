@@ -55,7 +55,7 @@ def get_mongodb_status():
     sqlite_status = {
         "status": sqlite_status_result["status"],
         "error": sqlite_status_result.get("error"),
-        "location": "server/vocabulary.db",
+        "location": sqlite_status_result.get("path", "Unknown"),
         "fallback_active": not bool(mongo_client) and sqlite_status_result["status"] == "active"
     }
     

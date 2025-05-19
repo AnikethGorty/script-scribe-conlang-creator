@@ -7,19 +7,32 @@ import json
 
 logger = logging.getLogger(__name__)
 
-# SQLite database setup
-DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'vocabulary.db')
+# SQLite database setup - use an absolute path that's definitely writable
+# Use a user-writable location instead of the server directory
+HOME_DIR = os.path.expanduser("~")
+APP_DATA_DIR = os.path.join(HOME_DIR, ".vocabulary_app")
+DATABASE_PATH = os.path.join(APP_DATA_DIR, "vocabulary.db")
 
 def get_sqlite_connection():
     """Get a connection to the SQLite database"""
     try:
-        # Ensure the directory exists
-        db_dir = os.path.dirname(DATABASE_PATH)
-        if not os.path.exists(db_dir):
-            os.makedirs(db_dir)
+        # Ensure the application data directory exists
+        if not os.path.exists(APP_DATA_DIR):
+            logger.info(f"Creating application data directory at {APP_DATA_DIR}")
+            os.makedirs(APP_DATA_DIR, exist_ok=True)
             
+        # Log the database path for debugging
+        logger.info(f"Connecting to SQLite database at: {DATABASE_PATH}")
+        
         conn = sqlite3.connect(DATABASE_PATH, timeout=10)
         conn.row_factory = sqlite3.Row  # This enables column access by name
+        
+        # Test the connection with a simple query
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        
+        logger.info("SQLite connection successful")
         return conn
     except Exception as e:
         logger.error(f"SQLite connection error: {str(e)}")
@@ -29,6 +42,26 @@ def get_sqlite_connection():
 def check_sqlite_status():
     """Check if SQLite is accessible and working properly"""
     try:
+        # Check if directory exists and is writable
+        if not os.path.exists(APP_DATA_DIR):
+            try:
+                os.makedirs(APP_DATA_DIR, exist_ok=True)
+                logger.info(f"Created data directory at {APP_DATA_DIR}")
+            except Exception as dir_error:
+                logger.error(f"Failed to create data directory: {str(dir_error)}")
+                return {
+                    "status": "error",
+                    "error": f"Cannot create data directory: {str(dir_error)}"
+                }
+        
+        # Check if directory is writable
+        if not os.access(APP_DATA_DIR, os.W_OK):
+            logger.error(f"Data directory is not writable: {APP_DATA_DIR}")
+            return {
+                "status": "error",
+                "error": f"Data directory is not writable: {APP_DATA_DIR}"
+            }
+        
         conn = get_sqlite_connection()
         if conn:
             cursor = conn.cursor()
@@ -39,7 +72,8 @@ def check_sqlite_status():
             
             return {
                 "status": "active" if result else "error",
-                "error": None
+                "error": None,
+                "path": DATABASE_PATH
             }
         else:
             return {

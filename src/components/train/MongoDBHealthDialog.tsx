@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -299,6 +298,15 @@ export function MongoDBHealthDialog() {
                     <p className="mt-2 font-medium">
                       Don't worry! Your vocabulary is safely stored in the local database.
                     </p>
+                  )}
+                  {!sqliteAvailable && (
+                    <div className="mt-2 text-red-500">
+                      <p className="font-medium">SQLite database is also unavailable!</p>
+                      <p>The application can't store any data currently. Please check the SQLite file location:</p>
+                      <code className="block bg-gray-100 dark:bg-gray-800 p-2 my-2 rounded">
+                        {healthStatus.details?.sqlite?.location || "Unknown location"}
+                      </code>
+                    </div>
                   )}
                 </div>
               )}
