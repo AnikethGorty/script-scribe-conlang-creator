@@ -30,6 +30,36 @@ export type Database = {
         }
         Relationships: []
       }
+      vocabulary_words: {
+        Row: {
+          context: string | null
+          created_at: string
+          id: string
+          meaning: string
+          type: string
+          updated_at: string
+          word: string
+        }
+        Insert: {
+          context?: string | null
+          created_at?: string
+          id?: string
+          meaning: string
+          type: string
+          updated_at?: string
+          word: string
+        }
+        Update: {
+          context?: string | null
+          created_at?: string
+          id?: string
+          meaning?: string
+          type?: string
+          updated_at?: string
+          word?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

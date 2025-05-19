@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Database } from "lucide-react";
+import { Search, Database, Cloud } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { 
   Sheet,
@@ -81,6 +81,41 @@ const WordDictionary: React.FC<WordDictionaryProps> = ({
       (word.context && word.context.toLowerCase().includes(searchLower))
     );
   });
+  
+  // Render appropriate data source badge
+  const renderDataSourceBadge = () => {
+    if (!dataSource) return null;
+    
+    if (dataSource === "supabase") {
+      return (
+        <Badge variant="outline" className="mt-2 flex items-center gap-1 w-fit">
+          <Cloud className="h-3 w-3" /> 
+          Supabase Cloud
+        </Badge>
+      );
+    } else if (dataSource.includes("supabase")) {
+      return (
+        <Badge variant="outline" className="mt-2 flex items-center gap-1 w-fit">
+          <Cloud className="h-3 w-3" /> 
+          Mixed (Supabase + {dataSource.replace('+supabase', '')})
+        </Badge>
+      );
+    } else if (dataSource === "mongodb") {
+      return (
+        <Badge variant="outline" className="mt-2 flex items-center gap-1 w-fit">
+          <Database className="h-3 w-3" /> 
+          MongoDB
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="outline" className="mt-2 flex items-center gap-1 w-fit">
+          <Database className="h-3 w-3" /> 
+          {dataSource === "sqlite" ? "Local SQLite" : dataSource}
+        </Badge>
+      );
+    }
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -90,12 +125,7 @@ const WordDictionary: React.FC<WordDictionaryProps> = ({
           <SheetDescription>
             Browse all saved words or search for specific terms
           </SheetDescription>
-          {dataSource && (
-            <Badge variant="outline" className="mt-2 flex items-center gap-1 w-fit">
-              <Database className="h-3 w-3" /> 
-              {dataSource === "mongodb" ? "MongoDB" : "Local SQLite"}
-            </Badge>
-          )}
+          {renderDataSourceBadge()}
         </SheetHeader>
 
         <div className="flex items-center space-x-2 mb-6">
