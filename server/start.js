@@ -2,36 +2,25 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const dotenv = require('dotenv');
-
-// Path to the .env file
-const envPath = path.join(__dirname, '.env');
-
-// Load environment variables from .env file if it exists
-let envVars = {};
-if (fs.existsSync(envPath)) {
-  console.log('Loading environment variables from .env file');
-  envVars = dotenv.config({ path: envPath }).parsed || {};
-}
 
 // Check for Python environment
 const isPython3 = process.platform === 'win32' ? 'python' : 'python3';
 
-// Path to the app.py file - updated to use the new entry point
-const appPath = path.join(__dirname, 'app.py');
-
-// Fall back to backend.py if app.py doesn't exist yet
+// Path to the backend.py file
 const backendPath = path.join(__dirname, 'backend.py');
-const scriptPath = fs.existsSync(appPath) ? appPath : backendPath;
+
+// Ensure the backend file exists
+if (!fs.existsSync(backendPath)) {
+  console.error('Error: backend.py not found at:', backendPath);
+  process.exit(1);
+}
 
 console.log('Starting Flask backend server...');
-console.log(`Using script: ${scriptPath}`);
 
 // Start the Flask server
-const flaskProcess = spawn(isPython3, [scriptPath], {
+const flaskProcess = spawn(isPython3, [backendPath], {
   stdio: 'pipe',
-  detached: false,
-  env: { ...process.env, ...envVars } // Pass environment variables to the Flask process
+  detached: false
 });
 
 flaskProcess.stdout.on('data', (data) => {

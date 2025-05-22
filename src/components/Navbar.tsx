@@ -1,7 +1,5 @@
 
 import { Link } from "react-router-dom";
-import { Home } from "lucide-react";
-import { Button } from "./ui/button";
 
 const Navbar = () => {
   return (
@@ -11,12 +9,7 @@ const Navbar = () => {
           <Link to="/" className="text-xl font-bold">
             ConLang Creator
           </Link>
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" asChild className="text-white hover:text-indigo-200 transition-colors">
-              <Link to="/" aria-label="Home">
-                <Home className="h-5 w-5" />
-              </Link>
-            </Button>
+          <div className="space-x-4">
             <Link to="/create" className="hover:text-indigo-200 transition-colors">
               Create a Script
             </Link>
