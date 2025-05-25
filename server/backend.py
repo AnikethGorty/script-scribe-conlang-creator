@@ -28,7 +28,10 @@ def get_mongo_client():
     try:
         # Try to get MongoDB URI from environment variable, otherwise use default
         mongo_uri = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/')
-        client = MongoClient(mongo_uri)
+        username=os.environ.get('USERNAME')
+        password=os.environ.get('PASSWORD')
+        uri = f"mongodb+srv://{username}:{password}@conlang.unmwrzt.mongodb.net/?retryWrites=true&w=majority&appName=conlang"
+        client = MongoClient(uri)
         # Test the connection
         client.admin.command('ping')
         logger.info("MongoDB connected successfully")
